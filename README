@@ -1,0 +1,3 @@
+This is a simulation of an economy that will start off relatively simple, but will eventually get more complex, with stocks and everything, alongside a LATER integration with a grid based environment.
+In its current rendition, the goal is to have a heterogenous set of traders interact with each other of a graph network, and also have them be able to add to their connections or sever other connections.
+Another goal is to have it run in MESA, but of course, they don't have a graph module!
