@@ -1,7 +1,7 @@
 import mesa
 from mesa.visualization.modules import NetworkModule
 from mesa.visualization.ModularVisualization import ModularServer
-from model import BaseAgent, EconomyModel
+from model import EconomyModel
 from mesa.visualization.modules import ChartModule
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltcolors
@@ -20,7 +20,7 @@ def network_portrayal(G):
         {
             "size": 6,
             "color": money_color(agents[0].money, min(moneys), max(moneys)),
-            "tooltip": f"Agent {agents[0].uid}: Money: {agents[0].money}, Inventory: {agents[0].inventory}",
+            "tooltip": f"Agent {agents[0].uid}: Money: {agents[0].money}, Inventory: {agents[0].inventory} , Type: {type(agents[0]).__name__}",
         }
         for (_, agents) in G.nodes.data("agent")
     ]
@@ -44,28 +44,29 @@ network = NetworkModule(
 )
 
 moneyChart = ChartModule(
-    [{"Label": "Average Money", "Color": "Blue"}],
-    data_collector_name='datacollector'
-)
-
-priceChart = ChartModule(
     [
-        {"Label": "Corn price", "Color": "Red"},
-        {"Label": "Apple price", "Color": "Green"},
-        {"Label": "Beef price", "Color": "Black"},
-        {"Label": "Corn available cost", "Color": "Yellow"},
-        {"Label": "Corn marginal value", "Color": "Purple"},
+        {"Label": "Average Consumer Money", "Color": "Blue"},
+        {"Label": "Average Producer Money", "Color": "Green"},
     ],
     data_collector_name='datacollector'
 )
 
+cornChart = ChartModule(
+    [
+        {"Label": "Average Price of Corn", "Color": "Red"},
+        {"Label": "Minimum Price of Corn", "Color": "Blue"},
+        {"Label": "Standard Deviation of Corn Price", "Color": "Green"},
+        {"Label": "Maximum Price of Corn", "Color": "Black"},
+    ]
+)
 
 model_params = {
-    "N": mesa.visualization.Slider("Number of agents", 10, 2, 50, 1)
+    "consumers": mesa.visualization.Slider("Number of consumers", 10, 2, 50, 1),
+    "producers": mesa.visualization.Slider("Number of producers", 10, 2, 50, 1)
 }
 server = ModularServer(
     model_cls=EconomyModel,
-    visualization_elements=[network, priceChart, moneyChart],
+    visualization_elements=[network, cornChart, moneyChart],
     name="Economy Model",
     model_params=model_params
     )
