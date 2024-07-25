@@ -31,19 +31,19 @@ class Consumer(Agent):
         random.shuffle(self.neighbours)
         for neighbour in self.neighbours:
             if isinstance(neighbour, Producer):
-                for good in neighbour.available.keys():
-                    if neighbour.available[good]["quantity"] > 0:
-                        offPrice = neighbour.available[good]["price"]
-                        if offPrice < self.values[good]:
-                            quant = max(0, min(neighbour.available[good]["quantity"],
-                                               self.values[good] - self.inventory[good], 1))
-                            self.inventory[good] += quant
-                            self.money -= quant * offPrice
-                            neighbour.inventory[good] -= quant
-                            neighbour.money += quant * offPrice
-                            neighbour.sales[good] += quant
-                            neighbour.available[good]["quantity"] -= quant
-                            print("Buying:", good, "Value: ", self.values[good], "Price: ", offPrice)
+                # for good in neighbour.available.keys():
+                good = "corn"
+                if neighbour.available[good]["quantity"] > 0:
+                    offPrice = neighbour.available[good]["price"]
+                    if offPrice < self.values[good]:
+                        quant = 1
+                        self.inventory[good] += quant
+                        self.money -= quant * offPrice
+                        neighbour.inventory[good] -= quant
+                        neighbour.money += quant * offPrice
+                        neighbour.sales[good] += quant
+                        neighbour.available[good]["quantity"] -= quant
+                        print("Buying:", good, "Value: ", self.values[good], "Price: ", offPrice)
 
 
 class Producer(Agent):
@@ -75,6 +75,7 @@ class Producer(Agent):
         }
 
     def step(self):
+        # If the price is less than what it costs to make it, don't make it and don't sell, you're loosing money no matter what. Otherwise, make it
         for good in self.prices.keys():
             if self.prices[good] < self.model.costToProduce[good] < self.money:
                 self.prices[good] *= 1.2
@@ -82,6 +83,7 @@ class Producer(Agent):
                 self.money -= self.prices[good]
                 self.inventory[good] += 1
                 self.available[good]["quantity"] += 1
+                self.available[good]["price"] = self.prices[good]
 
     def price_adjustment(self):
         for good in self.prices.keys():
