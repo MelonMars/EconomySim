@@ -9,7 +9,7 @@ import matplotlib.colors as pltcolors
 
 def money_color(money, minMoney, maxMoney):
     norm = pltcolors.Normalize(vmin=minMoney, vmax=maxMoney)
-    colormap = plt.get_cmap('hot')  # You can choose different colormaps here
+    colormap = plt.get_cmap('hot')
     return pltcolors.to_hex(colormap(norm(money)))
 
 
@@ -20,7 +20,7 @@ def network_portrayal(G):
         {
             "size": 6,
             "color": money_color(agents[0].money, min(moneys), max(moneys)),
-            "tooltip": f"Agent {agents[0].uid}: Money: {agents[0].money}, Food: {agents[0].food}, Appetite: {agents[0].appetite}",
+            "tooltip": f"Agent {agents[0].uid}: Money: {agents[0].money}, Inventory: {agents[0].inventory}",
         }
         for (_, agents) in G.nodes.data("agent")
     ]
@@ -48,15 +48,24 @@ moneyChart = ChartModule(
     data_collector_name='datacollector'
 )
 
+priceChart = ChartModule(
+    [
+        {"Label": "Corn price", "Color": "Red"},
+        {"Label": "Apple price", "Color": "Green"},
+        {"Label": "Beef price", "Color": "Black"},
+    ],
+    data_collector_name='datacollector'
+)
+
 
 model_params = {
     "N": mesa.visualization.Slider("Number of agents", 10, 2, 50, 1)
 }
 server = ModularServer(
     model_cls=EconomyModel,
-    visualization_elements=[network, moneyChart],
+    visualization_elements=[network, priceChart, moneyChart],
     name="Economy Model",
     model_params=model_params
     )
-server.port = 8521  # The default
+server.port = 8521
 server.launch()
