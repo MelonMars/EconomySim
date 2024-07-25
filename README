@@ -2,4 +2,5 @@ This is a simulation of an economy that will start off relatively simple, but wi
 In its current rendition, the goal is to have a heterogenous set of traders interact with each other of a graph network, and also have them be able to add to their connections or sever other connections.
 Another goal is to have it run in MESA, but of course, they don't have a graph module!
 
-Sources:
+Ok so for basic one I need to:
+- Have agent determine marginal value of item

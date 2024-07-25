@@ -53,6 +53,8 @@ priceChart = ChartModule(
         {"Label": "Corn price", "Color": "Red"},
         {"Label": "Apple price", "Color": "Green"},
         {"Label": "Beef price", "Color": "Black"},
+        {"Label": "Corn available cost", "Color": "Yellow"},
+        {"Label": "Corn marginal value", "Color": "Purple"},
     ],
     data_collector_name='datacollector'
 )

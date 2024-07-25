@@ -12,14 +12,15 @@ class BaseAgent(Agent):
         self.money = money
         self.neighbours = []
         self.inventory = {
-            "corn": random.randint(0, 100),
-            "apples": random.randint(0, 100),
-            "beef": random.randint(0, 100),
+            "corn": random.randint(30, 100),
+            "apples": random.randint(30, 100),
+            "beef": random.randint(30, 100),
         }
-        self.goal = {
-            "corn": random.randint(0, 100),
-            "apples": random.randint(0, 50),
-            "beef": random.randint(0, 10),
+        # Marginal value OR value of the good to the agent, subjectively in terms of how much utility it would bring.
+        self.values = {
+            "corn": max(random.randint(10, 15), 30),
+            "apples": max(random.randint(10, 15), 50 - self.inventory["apples"]),
+            "beef": max(random.randint(10, 15), 60 - self.inventory["beef"]),
         }
         self.prices = {
             "corn": random.uniform(1.0, 10.0),
@@ -41,79 +42,24 @@ class BaseAgent(Agent):
         self.neighbours = self.model.grid.get_neighbors(self.pos, include_center=False)
         random.shuffle(self.neighbours)
         for good in self.inventory.keys():
-            if self.inventory[good] > 0:
-                self.available[good]["quantity"] = 1
-                self.available[good]["price"] = self.prices[good]
+            if self.prices[good] < self.model.costToProduce[good]:
+                if self.money > self.model.costToProduce[good]:
+                    self.money -= self.model.costToProduce[good]
+                    self.inventory[good] += 1
+                    self.available[good]["quantity"] = 1
+                    self.available[good]["price"] = self.model.costToProduce[good] + 0.1
+            elif self.values[good] < self.prices[good]:
+                if self.inventory[good] > 0:
+                    self.available[good]["quantity"] = 1
+                    self.available[good]["price"] = self.prices[good]
         for neighbour in self.neighbours:
             for good in neighbour.available.keys():
                 if neighbour.available[good]["quantity"] > 0:
                     offPrice = neighbour.available[good]["price"]
-                    if offPrice < self.prices[good]:
-                        quant = max(0, min(neighbour.available[good]["quantity"], self.goal[good] - self.inventory[good],
-                                   self.money // offPrice))
-                        self.inventory[good] += quant
-                        self.money -= quant * offPrice
-                        neighbour.inventory[good] -= quant
-                        neighbour.money += quant * offPrice
-                        neighbour.sales[good] += quant
-                        neighbour.available[good]["quantity"] -= quant
-
-    def price_adjustment(self):
-        for good in self.prices.keys():
-            if self.sales[good] > 0:
-                self.prices[good] *= 1.1
-            elif self.sales[good] < 1:
-                self.prices[good] *= 0.9
-            self.sales[good] = 0
-
-
-class Farmer(Agent):
-    def __init__(self, uid, model, money):
-        super().__init__(uid, model)
-        self.uid = uid
-        self.money = money
-        self.neighbours = []
-        self.inventory = {
-            "corn": random.randint(0, 100),
-            "apples": random.randint(0, 100),
-            "beef": random.randint(0, 100),
-        }
-        self.goal = {
-            "corn": random.randint(0, 100),
-            "apples": random.randint(0, 50),
-            "beef": random.randint(0, 10),
-        }
-        self.prices = {
-            "corn": random.uniform(1.0, 10.0),
-            "apples": random.uniform(1.0, 10.0),
-            "beef": random.uniform(1.0, 10.0),
-        }
-        self.available = {
-            "corn": {"quantity": 0, "price": self.prices["corn"]},
-            "apples": {"quantity": 0, "price": self.prices["apples"]},
-            "beef": {"quantity": 0, "price": self.prices["beef"]},
-        }
-        self.sales = {
-            "corn": 0,
-            "apples": 0,
-            "beef": 0,
-        }
-
-    def step(self):
-        self.inventory["corn"] += 10
-        self.neighbours = self.model.grid.get_neighbors(self.pos, include_center=False)
-        random.shuffle(self.neighbours)
-        for good in self.inventory.keys():
-            if self.inventory[good] > 0:
-                self.available[good]["quantity"] = 1
-                self.available[good]["price"] = self.prices[good]
-        for neighbour in self.neighbours:
-            for good in neighbour.available.keys():
-                if neighbour.available[good]["quantity"] > 0:
-                    offPrice = neighbour.available[good]["price"]
-                    if offPrice < self.prices[good]:
-                        quant = max(0, min(neighbour.available[good]["quantity"], self.goal[good] - self.inventory[good],
-                                    self.money // offPrice))
+                    if offPrice < self.values[good]:
+                        quant = max(0,
+                                    min(neighbour.available[good]["quantity"], self.values[good] - self.inventory[good],
+                                        self.money // offPrice, 1))
                         self.inventory[good] += quant
                         self.money -= quant * offPrice
                         neighbour.inventory[good] -= quant
@@ -140,12 +86,13 @@ class EconomyModel(Model):
         self.schedule = RandomActivation(self)
         self.G = nx.connected_watts_strogatz_graph(n=self.N, k=4, p=0.1)
         self.grid = NetworkGrid(self.G)
-        fnode = random.choice(list(self.G.nodes()))
+        self.costToProduce = {
+            "corn": 10,
+            "apples": 20,
+            "beef": 30,
+        }
         for i, node in enumerate(self.G.nodes()):
-            if node == fnode:
-                agent = Farmer(i, self, random.randint(10, 100))
-            else:
-                agent = BaseAgent(i, self, random.randint(10, 100))
+            agent = BaseAgent(i, self, 10000)
             self.schedule.add(agent)
             self.grid.place_agent(agent, node)
         self.datacollector = DataCollector(
@@ -154,16 +101,16 @@ class EconomyModel(Model):
                 "Corn price": self.corn_price,
                 "Apple price": self.apple_price,
                 "Beef price": self.beef_price,
+                "Corn available cost": self.corn_cost,
+                "Corn marginal value": self.corn_val,
             }
         )
 
     def step(self):
         self.schedule.step()
-        self.datacollector.collect(self)
-        print("Data collected:", self.datacollector.get_model_vars_dataframe().tail())
         for agent in self.schedule.agents:
             agent.price_adjustment()
-
+        self.datacollector.collect(self)
 
     def average_money(self):
         return sum([agent.money for agent in self.schedule.agents]) / self.N
@@ -176,3 +123,9 @@ class EconomyModel(Model):
 
     def beef_price(self):
         return sum([agent.prices["beef"] for agent in self.schedule.agents]) / self.N
+
+    def corn_cost(self):
+        return sum([agent.available["corn"]["price"] for agent in self.schedule.agents]) / self.N
+
+    def corn_val(self):
+        return sum([agent.values["corn"] for agent in self.schedule.agents]) / self.N
