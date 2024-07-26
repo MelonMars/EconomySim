@@ -13,7 +13,7 @@ class Consumer(Agent):
         self.money = money
         self.neighbours = []
         self.inventory = {
-            "corn": 0,
+            "corn": 10,
             "apples": 0,
             "beef": 0,
         }
@@ -26,25 +26,33 @@ class Consumer(Agent):
         }
 
     def step(self):
-        self.inventory["corn"] -= 1
         self.neighbours = self.model.grid.get_neighbors(self.pos, include_center=False)
         random.shuffle(self.neighbours)
+        lowest_price = 60
+        lowest_neighbour = random.choice([neighbour for neighbour in self.neighbours if isinstance(neighbour, Producer)])
+        good = "corn"
+        self.inventory["corn"] -= 1
+        self.values["corn"] = 60 - self.inventory["corn"]
         for neighbour in self.neighbours:
             if isinstance(neighbour, Producer):
                 # for good in neighbour.available.keys():
-                good = "corn"
                 if neighbour.available[good]["quantity"] > 0:
                     offPrice = neighbour.available[good]["price"]
-                    if offPrice < self.values[good]:
-                        quant = 1
-                        self.inventory[good] += quant
-                        self.money -= quant * offPrice
-                        neighbour.inventory[good] -= quant
-                        neighbour.money += quant * offPrice
-                        neighbour.sales[good] += quant
-                        neighbour.available[good]["quantity"] -= quant
-                        print("Buying:", good, "Value: ", self.values[good], "Price: ", offPrice)
-
+                    if offPrice < lowest_price:
+                        lowest_price = offPrice
+                        lowest_neighbour = neighbour
+        if lowest_price < self.values[good] or self.inventory[good] == 0:
+            quant = 1
+            if lowest_neighbour.inventory[good] >= quant:
+                self.inventory[good] += quant
+                self.money -= quant * lowest_price
+                lowest_neighbour.inventory[good] -= quant
+                lowest_neighbour.money += quant * lowest_price
+                lowest_neighbour.sales[good] += quant
+                lowest_neighbour.available[good]["quantity"] -= quant
+                print("Agent:", self.uid, "Buying:", good, "Value: ", self.values[good], "Price: ", str(lowest_price) + ".", "I currently have:", self.inventory[good])
+            else:
+                print("Agent:", self.uid, "not buying from", lowest_neighbour.uid, "because they don't have enough inventory.")
 
 class Producer(Agent):
     def __init__(self, uid, model, money):
@@ -77,12 +85,12 @@ class Producer(Agent):
     def step(self):
         # If the price is less than what it costs to make it, don't make it and don't sell, you're loosing money no matter what. Otherwise, make it
         for good in self.prices.keys():
-            if self.prices[good] < self.model.costToProduce[good] < self.money:
-                self.prices[good] *= 1.2
-            elif self.prices[good] > self.model.costToProduce[good]:
-                self.money -= self.prices[good]
-                self.inventory[good] += 1
-                self.available[good]["quantity"] += 1
+            if self.prices[good] < self.model.costToProduce[good]:
+                self.prices[good] *= 1.05
+            elif self.prices[good] > self.model.costToProduce[good] and self.money >= self.model.costToProduce[good]:
+                self.money -= 2 * self.model.costToProduce[good]
+                self.inventory[good] += 2
+                self.available[good]["quantity"] += 2
                 self.available[good]["price"] = self.prices[good]
 
     def price_adjustment(self):
@@ -90,7 +98,7 @@ class Producer(Agent):
             if self.sales[good] > 0:
                 self.prices[good] *= 1.1
             else:
-                self.prices[good] *= 0.9
+                self.prices[good] *= 0.8
             self.sales[good] = 0
         print(self.prices["corn"])
 
@@ -124,7 +132,6 @@ class EconomyModel(Model):
                 "Average Producer Money": self.average_producer_money,
                 "Average Price of Corn": self.corn_price,
                 "Minimum Price of Corn": self.corn_min_price,
-                "Standard Deviation of Corn Price": self.corn_price_stddev,
                 "Maximum Price of Corn": self.corn_price_max
             }
         )
@@ -147,9 +154,6 @@ class EconomyModel(Model):
 
     def corn_min_price(self):
         return min([agent.prices["corn"] for agent in self.schedule.agents if isinstance(agent, Producer)])
-
-    def corn_price_stddev(self):
-        return np.std([agent.prices["corn"] for agent in self.schedule.agents if isinstance(agent, Producer)])
 
     def corn_price_max(self):
         return max([agent.prices["corn"] for agent in self.schedule.agents if isinstance(agent, Producer)])

@@ -55,7 +55,6 @@ cornChart = ChartModule(
     [
         {"Label": "Average Price of Corn", "Color": "Red"},
         {"Label": "Minimum Price of Corn", "Color": "Blue"},
-        {"Label": "Standard Deviation of Corn Price", "Color": "Green"},
         {"Label": "Maximum Price of Corn", "Color": "Black"},
     ]
 )
